@@ -1,0 +1,145 @@
+import pygame
+import random
+
+# Game parameters
+game_width = 800
+game_height = 200
+player_width = 30
+player_height = 50
+obstacle_width = 30
+obstacle_height = 50
+player_color = (0, 0, 255)  # Blue color for player
+obstacle_color = (255, 0, 0)  # Red color for obstacles
+background_color = (255, 255, 255)
+ground_level = 160
+obstacle_speed = 5
+gravity = 1
+jump_height = 55
+
+# Initialize pygame
+pygame.init()
+
+# Set up the display
+screen = pygame.display.set_mode((game_width, game_height))
+pygame.display.set_caption("Game")
+
+# Load fonts
+font = pygame.font.SysFont(None, 36)
+
+# Function to create a game environment
+def create_game_environment():
+    screen.fill(background_color)
+
+# Function to add obstacles to the game environment
+def add_obstacle(obstacles):
+    obstacle_x = game_width
+    obstacles.append([obstacle_x, ground_level - obstacle_height])
+    return obstacles
+
+# Function to update obstacle positions
+def update_obstacles(obstacles):
+    for obs in obstacles:
+        obs[0] -= obstacle_speed
+    obstacles = [obs for obs in obstacles if obs[0] + obstacle_width > 0]  # Remove obstacles that are out of frame
+    return obstacles
+
+# Function to draw the player
+def draw_player(player_x, player_y):
+    pygame.draw.rect(screen, player_color, (player_x, player_y, player_width, player_height))
+
+# Function to draw obstacles
+def draw_obstacles(obstacles):
+    for (x, y) in obstacles:
+        pygame.draw.rect(screen, obstacle_color, (x, y, obstacle_width, obstacle_height))
+
+# Function to choose an action (jump or do nothing)
+def choose_action(obstacles, player_x, player_y):
+    for (x, y) in obstacles:
+        if player_x + player_width > x and player_x < x + obstacle_width:
+            if player_y == ground_level - player_height:
+                return 1  # Jump if an obstacle is ahead
+    return 0
+
+# Function to perform the chosen action
+def perform_action(action, player_y, velocity_y):
+    if action == 1 and player_y == ground_level - player_height:
+        return player_y - jump_height, -10  # Jump if action is to jump
+    return player_y + velocity_y, velocity_y + gravity
+
+# Function to check for collisions
+def check_collision(player_x, player_y, obstacles):
+    for (x, y) in obstacles:
+        if player_x + player_width > x and player_x < x + obstacle_width:
+            if player_y + player_height > y:
+                print(f"Collision detected: player at ({player_x}, {player_y}), obstacle at ({x}, {y})")
+                return True
+    return False
+
+# Main game loop
+def game_loop():
+    player_x = 50
+    player_y = ground_level - player_height
+    velocity_y = 0
+    obstacles = []
+    clock = pygame.time.Clock()
+    running = True
+    game_over = False
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    running = False
+
+        if not game_over:
+            # Create game environment
+            create_game_environment()
+            
+            # Add new obstacles periodically
+            if random.randint(0, 100) < 5:  # 5% chance to add a new obstacle each frame
+                obstacles = add_obstacle(obstacles)
+            
+            # Update obstacles
+            obstacles = update_obstacles(obstacles)
+            
+            # Choose action and update player position
+            action = choose_action(obstacles, player_x, player_y)
+            player_y, velocity_y = perform_action(action, player_y, velocity_y)
+            
+            # Ensure player stays within bounds
+            player_y = min(player_y, ground_level - player_height)
+            player_y = max(player_y, ground_level - player_height - jump_height)  # Jump height limit
+            
+            # Draw player and obstacles
+            draw_player(player_x, player_y)
+            draw_obstacles(obstacles)
+
+            # Check for collisions
+            if check_collision(player_x, player_y, obstacles):
+                game_over = True
+                # Display game over message
+                text = font.render("Game Over!", True, (0, 0, 0))
+                screen.blit(text, (game_width // 2 - text.get_width() // 2, game_height // 2 - text.get_height() // 2))
+            
+            # Update display
+            pygame.display.flip()
+            
+            # Cap the frame rate
+            clock.tick(30)
+        else:
+            # Wait for user input to quit if game is over
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        running = False
+
+    pygame.quit()
+
+# Start the game
+game_loop()
